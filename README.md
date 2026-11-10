@@ -1,30 +1,37 @@
-# Aura: Native Android Webview Application (Jetpack Compose)
+# Aura: Native Android Safety Application (Jetpack Compose)
 
-This is a production-grade native Android application implementing the Aura Specification:
-1. **App Rebranding & Header Layout**:
-   - Header title: "Aura".
-   - Top action: "Send Location Type" icon button that immediately dispatches location update payload to the backend server.
-2. **Main WebView Container & Navigation Rules**:
-   - Full-screen Webview occupying the main layout viewport.
-   - Set directly to target `BASE_URL` ("http://192.168.1.18:9001").
-   - Back-button override logic:
-     - Checks if `webView.canGoBack()`. If true and not at Base URL, navigates back (`webView.goBack()`).
-     - If current URL == `BASE_URL` or cannot go back, blocks navigation and displays:
-       `"Cannot go back, it is the base URL"`.
-3. **Cleaned View Hierarchy**:
-   - Dedicated full-screen WebView with legacy Radars, Safe Zones, and Contacts UI completely removed.
-4. **Navigation Drawer & Settings**:
-   - Side-navigation drawer accessible via Hamburger Menu.
-   - Settings Screen with:
-     - Location trigger interval configuration (Manual, 5m, 15m, 30m, 60m) & "Send Location Now" button.
-     - Device battery status reporting toggle (<10% trigger).
-     - Network signal strength reporting toggle (disconnect trigger).
-     - Target Base URL and Location API Endpoint configuration.
-5. **Offline Queue (50 Requests Max)**:
-   - Persisted in local Room Database when disconnected, automatically synced upon reconnect.
+This is a production-grade native Android application implementing the full Aura Architecture:
 
-## How to Run in Android Studio
-1. Open Android Studio (Ladybug / Koala / Hedgehog or newer).
-2. Click "Open..." and select this project directory.
-3. Allow Gradle to sync.
-4. Run on an Android Emulator or Physical Device (API 26+).
+### 1. Persistent Background Execution
+- **Foreground Service**: `AuraBackgroundSafetyService` runs continuously with an ongoing notification and partial WakeLock (`PowerManager.PARTIAL_WAKE_LOCK`), ensuring data fetching, SIM/battery monitoring, and payload transmissions are never killed by Android battery optimization / Doze mode.
+- Auto-starts on device boot via `BootCompletedReceiver`.
+
+### 2. Navigation & Gestures
+- **System Back Button**: Handled via Compose `BackHandler` (navigates webview back or prevents leaving base URL).
+- **No Swipe Gestures**: Drawer swipe gesture is explicitly disabled (`ModalNavigationDrawer(gesturesEnabled = false, ...)`).
+- **Clean Footer**: Bottom navigation bar is completely removed for a full-screen viewport.
+
+### 3. Minimal Top Header Bar
+- **Left**: "Aura" brand title and shield icon.
+- **Center**: Active server/API URL display badge.
+- **Right**:
+  - Refresh button: triggers an on-demand data fetch & payload transmission.
+  - Hamburger menu icon: opens Settings drawer.
+
+### 4. Settings Screen (Actual vs. Threshold)
+- Displays **Actual vs. Threshold values side-by-side** for all monitored metrics:
+  - Battery: Current actual level (%) vs. configured trigger threshold (%).
+  - SIM 1 Signal: Current dBm vs. threshold (dBm).
+  - SIM 2 Signal: Current dBm vs. threshold (dBm).
+- Real-time trigger status badges and Persistent Service health card.
+- "On-Demand Fetch" action button.
+
+### 5. Features & Trigger Logic
+- **Location Payload**: Full JSON payload with user identifier, location, battery, and structured `metrics_comparison` object.
+- **Battery Drop Trigger**: Fires payload when battery falls below $X\%$ (Default 10%), and subsequent triggers fire on **every further battery percentage drop** below $X\%$. Resets when battery charges back to $\ge X\%$.
+- **Dual SIM Monitoring**: Telephony signal strength observer for SIM 1 and SIM 2. Fires trigger **only once** when signal falls below threshold; resets trigger state **only after signal strength rises back above threshold** (single-fire hysteresis latch).
+- **50-Item Offline Queue**: Persisted in Room database and automatically drained upon network reconnection.
+
+## How to Build
+- **GitHub Actions**: Push to GitHub to trigger `.github/workflows/build-apk.yml` and download the debug APK from the Artifacts tab.
+- **Android Studio**: Open project root, sync Gradle (8.10.2 / AGP 8.7.2 / JDK 17), and run `assembleDebug`.
