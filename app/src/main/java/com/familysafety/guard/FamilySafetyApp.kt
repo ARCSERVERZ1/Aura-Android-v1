@@ -51,7 +51,11 @@ class FamilySafetyApp : Application() {
 
         // 5. Register Dynamic Battery Status Receiver (ACTION_BATTERY_CHANGED requires runtime registration)
         val batteryFilter = IntentFilter(Intent.ACTION_BATTERY_CHANGED)
-        registerReceiver(batteryReceiver, batteryFilter)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(batteryReceiver, batteryFilter, Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            registerReceiver(batteryReceiver, batteryFilter)
+        }
 
         // 6. Register Network Observer for signal loss trigger & reconnect auto-flush
         networkObserver = NetworkConnectivityObserver(this, safetyRepository)
