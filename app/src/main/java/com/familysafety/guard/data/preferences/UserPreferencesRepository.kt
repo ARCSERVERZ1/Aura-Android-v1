@@ -30,9 +30,17 @@ class UserPreferencesRepository(private val context: Context) {
         val KEY_REPORT_BATTERY = booleanPreferencesKey("report_battery_status")
         val KEY_REPORT_NETWORK = booleanPreferencesKey("report_network_strength")
 
+        // New Feature: User-configurable Battery & Network Signal Thresholds
+        val KEY_BATTERY_THRESHOLD = intPreferencesKey("battery_threshold_percent")
+        val KEY_LAST_REPORTED_BATTERY_DROP = intPreferencesKey("last_reported_battery_drop")
+        val KEY_NETWORK_SIGNAL_THRESHOLD = intPreferencesKey("network_signal_threshold_dbm")
+        val KEY_NETWORK_TRIGGER_LATCHED = booleanPreferencesKey("network_trigger_latched")
+
         const val DEFAULT_BASE_URL = "http://192.168.1.18:9001"
         const val DEFAULT_API_ENDPOINT = "http://192.168.1.18:9001/appg/location/api/"
         const val DEFAULT_TRIGGER_INTERVAL = "15m"
+        const val DEFAULT_BATTERY_THRESHOLD = 10 // 10%
+        const val DEFAULT_NETWORK_THRESHOLD_DBM = -100 // -100 dBm
     }
 
     /**
@@ -45,6 +53,22 @@ class UserPreferencesRepository(private val context: Context) {
         val currentDateFormatted = dateFormat.format(Date())
         return "$trimmed$currentDateFormatted"
     }
+
+    val batteryThresholdFlow: Flow<Int> = dataStore.data
+        .catch { emitEmptyPreferences(it) }
+        .map { preferences -> preferences[KEY_BATTERY_THRESHOLD] ?: DEFAULT_BATTERY_THRESHOLD }
+
+    val lastReportedBatteryDropFlow: Flow<Int?> = dataStore.data
+        .catch { emitEmptyPreferences(it) }
+        .map { preferences -> preferences[KEY_LAST_REPORTED_BATTERY_DROP] }
+
+    val networkSignalThresholdFlow: Flow<Int> = dataStore.data
+        .catch { emitEmptyPreferences(it) }
+        .map { preferences -> preferences[KEY_NETWORK_SIGNAL_THRESHOLD] ?: DEFAULT_NETWORK_THRESHOLD_DBM }
+
+    val networkTriggerLatchedFlow: Flow<Boolean> = dataStore.data
+        .catch { emitEmptyPreferences(it) }
+        .map { preferences -> preferences[KEY_NETWORK_TRIGGER_LATCHED] ?: false }
 
     val userIdentifierFlow: Flow<String?> = dataStore.data
         .catch { emitEmptyPreferences(it) }
@@ -134,6 +158,34 @@ class UserPreferencesRepository(private val context: Context) {
     suspend fun setReportNetworkStrength(enabled: Boolean) {
         dataStore.edit { preferences ->
             preferences[KEY_REPORT_NETWORK] = enabled
+        }
+    }
+
+    suspend fun saveBatteryThreshold(thresholdPercent: Int) {
+        dataStore.edit { preferences ->
+            preferences[KEY_BATTERY_THRESHOLD] = thresholdPercent
+        }
+    }
+
+    suspend fun setLastReportedBatteryDrop(level: Int?) {
+        dataStore.edit { preferences ->
+            if (level == null) {
+                preferences.remove(KEY_LAST_REPORTED_BATTERY_DROP)
+            } else {
+                preferences[KEY_LAST_REPORTED_BATTERY_DROP] = level
+            }
+        }
+    }
+
+    suspend fun saveNetworkSignalThreshold(thresholdDbm: Int) {
+        dataStore.edit { preferences ->
+            preferences[KEY_NETWORK_SIGNAL_THRESHOLD] = thresholdDbm
+        }
+    }
+
+    suspend fun setNetworkTriggerLatched(latched: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[KEY_NETWORK_TRIGGER_LATCHED] = latched
         }
     }
 

@@ -16,13 +16,17 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <!-- Boot Completion to re-register triggers after restart -->
-    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <!-- Persistent Foreground Service Permissions -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.READ_PHONE_STATE" />
 
     <!-- Features -->
     <uses-feature android:name="android.hardware.location.gps" android:required="false" />
     <uses-feature android:name="android.hardware.location.network" android:required="false" />
+    <uses-feature android:name="android.hardware.telephony" android:required="false" />
 
     <application
         android:name=".FamilySafetyApp"
@@ -50,6 +54,13 @@
             </intent-filter>
         </activity>
 
+        <!-- Persistent Foreground Execution Service: continuous location, SIM signal, and battery drop monitoring -->
+        <service
+            android:name=".service.AuraBackgroundSafetyService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="location|dataSync" />
+
         <!-- BroadcastReceiver for Battery State & Low Charge Trigger (<10%) -->
         <receiver
             android:name=".receiver.BatteryLevelReceiver"
@@ -62,7 +73,7 @@
             </intent-filter>
         </receiver>
 
-        <!-- Boot Receiver to re-initialize Network and Battery monitoring -->
+        <!-- Boot Receiver to re-initialize Network, Battery and Foreground Service -->
         <receiver
             android:name=".receiver.BootCompletedReceiver"
             android:enabled="true"

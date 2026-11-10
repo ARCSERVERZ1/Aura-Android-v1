@@ -34,21 +34,23 @@ class BatteryLevelReceiver : BroadcastReceiver() {
         val safetyRepo = app.safetyRepository
 
         CoroutineScope(Dispatchers.IO).launch {
-            val alertAlreadySent = prefs.batteryAlertSentFlow.first()
+            val threshold = prefs.batteryThresholdFlow.first()
+            val lastReportedDrop = prefs.lastReportedBatteryDropFlow.first()
+            val currentIntLevel = batteryPct.toInt()
 
-            if (batteryPct < 10.0f) {
-                // Trigger payload POST EXACTLY ONCE when dropping below 10%
-                if (!alertAlreadySent) {
-                    Log.i("BatteryReceiver", "Battery dropped to $batteryPct% (< 10%). Firing ChargeTrigger!")
+            // Trigger when battery falls below X%, and fire on every further percentage drop below X%
+            if (currentIntLevel < threshold) {
+                if (lastReportedDrop == null || currentIntLevel < lastReportedDrop) {
+                    Log.i("BatteryReceiver", "Battery dropped to $currentIntLevel% (< $threshold%). Firing ChargeTrigger!")
                     safetyRepo.triggerLocationUpdate(status = "ChargeTrigger")
-                    // Set flag so it does not trigger again while remaining below 10%
-                    prefs.setBatteryAlertSent(true)
+                    // Track this level so next trigger only fires if it drops further (e.g. 9% -> 8% -> 7%)
+                    prefs.setLastReportedBatteryDrop(currentIntLevel)
                 }
-            } else if (batteryPct >= 15.0f) {
-                // Reset flag once battery is charged back to safe level (hysteresis window >= 15%)
-                if (alertAlreadySent) {
-                    Log.d("BatteryReceiver", "Battery recovered to $batteryPct%. Resetting alert flag.")
-                    prefs.setBatteryAlertSent(false)
+            } else if (currentIntLevel >= threshold) {
+                // Reset drop tracking when battery charges back to or above threshold
+                if (lastReportedDrop != null) {
+                    Log.d("BatteryReceiver", "Battery charged back to $currentIntLevel% (>= $threshold%). Resetting drop state.")
+                    prefs.setLastReportedBatteryDrop(null)
                 }
             }
         }

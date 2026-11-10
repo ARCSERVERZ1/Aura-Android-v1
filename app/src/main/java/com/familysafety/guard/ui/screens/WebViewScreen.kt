@@ -63,9 +63,10 @@ fun WebViewScreen(
         }
     }
 
-    // Requirement 4: Standard Side-Navigation Drawer (Hamburger Menu)
+    // Disable swipe gestures: Drawer opens ONLY when clicking the hamburger menu icon
     ModalNavigationDrawer(
         drawerState = drawerState,
+        gesturesEnabled = false,
         drawerContent = {
             ModalDrawerSheet {
                 Spacer(modifier = Modifier.height(16.dp))
@@ -111,7 +112,7 @@ fun WebViewScreen(
                     modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
                 )
 
-                // Requirement 4: Settings entry inside navigation menu
+                // Settings entry inside navigation menu
                 NavigationDrawerItem(
                     icon = { Icon(Icons.Default.Settings, contentDescription = null) },
                     label = { Text("Settings") },
@@ -126,16 +127,16 @@ fun WebViewScreen(
                 )
 
                 NavigationDrawerItem(
-                    icon = { Icon(Icons.Default.MyLocation, contentDescription = null) },
-                    label = { Text("Trigger Location Now") },
+                    icon = { Icon(Icons.Default.Refresh, contentDescription = null) },
+                    label = { Text("On-Demand Fetch") },
                     selected = false,
                     onClick = {
                         scope.launch {
                             drawerState.close()
-                            val success = safetyRepository.triggerLocationUpdate("ButtonTrigger")
+                            val success = safetyRepository.triggerLocationUpdate("OnDemandFetch")
                             Toast.makeText(
                                 context,
-                                if (success) "Location Transmitted" else "Saved to Local Queue",
+                                if (success) "On-Demand Payload Sent" else "Saved to Local Queue",
                                 Toast.LENGTH_SHORT
                             ).show()
                         }
@@ -147,90 +148,74 @@ fun WebViewScreen(
     ) {
         Scaffold(
             topBar = {
-                // Requirement 1: Rename main application header to "Aura"
+                // Top Header Bar (Minimal Design):
+                // Left: App Title / Brand logo
+                // Center: Display the server/API URL being used
+                // Right: Refresh button (triggers on-demand fetch) & Hamburger menu icon
                 TopAppBar(
                     title = {
-                        Column {
+                        Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                             Text(
-                                text = "Aura",
-                                style = MaterialTheme.typography.titleLarge,
-                                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
-                            )
-                            Text(
-                                text = currentUrl.ifBlank { baseUrl },
-                                style = MaterialTheme.typography.bodySmall,
+                                text = baseUrl.removePrefix("http://").removePrefix("https://"),
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = androidx.compose.ui.text.font.FontWeight.Medium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 maxLines = 1
                             )
                         }
                     },
                     navigationIcon = {
-                        IconButton(onClick = { scope.launch { drawerState.open() } }) {
-                            Icon(Icons.Default.Menu, contentDescription = "Navigation Menu")
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(start = 12.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Shield,
+                                contentDescription = "Aura Logo",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(22.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "Aura",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+                            )
                         }
                     },
                     actions = {
-                        // Requirement 1: Replace top SOS button with "Send Location Type" icon button
+                        // Right: Refresh button (triggers on-demand data fetch)
                         IconButton(
                             onClick = {
                                 scope.launch {
-                                    val success = safetyRepository.triggerLocationUpdate("ButtonTrigger")
+                                    val success = safetyRepository.triggerLocationUpdate("OnDemandFetch")
+                                    webViewInstance?.reload()
                                     Toast.makeText(
                                         context,
-                                        if (success) "Location Transmitted" else "Offline: Stored in 50-Request Queue",
+                                        if (success) "On-Demand Data Fetched" else "Offline: Stored in Queue",
                                         Toast.LENGTH_SHORT
                                     ).show()
                                 }
                             }
                         ) {
                             Icon(
-                                imageVector = Icons.Default.MyLocation,
-                                contentDescription = "Send Location Type",
+                                imageVector = Icons.Default.Refresh,
+                                contentDescription = "On-Demand Fetch Refresh",
                                 tint = MaterialTheme.colorScheme.primary
                             )
+                        }
+
+                        // Right: Hamburger menu icon (opens app settings drawer/screen)
+                        IconButton(onClick = { scope.launch { drawerState.open() } }) {
+                            Icon(Icons.Default.Menu, contentDescription = "Open Settings Menu")
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
                         containerColor = MaterialTheme.colorScheme.surface
                     )
                 )
-            },
-            bottomBar = {
-                // Bottom Toolbar with Back, Home, and Reload controls
-                BottomAppBar(
-                    actions = {
-                        IconButton(
-                            onClick = {
-                                val current = webViewInstance?.url ?: ""
-                                val isBaseUrl = current == baseUrl || current == "$baseUrl/" || current.isEmpty()
-                                if (webViewInstance?.canGoBack() == true && !isBaseUrl) {
-                                    webViewInstance?.goBack()
-                                } else {
-                                    Toast.makeText(context, "Cannot go back, it is the base URL", Toast.LENGTH_SHORT).show()
-                                }
-                            }
-                        ) {
-                            Icon(Icons.Default.ArrowBack, contentDescription = "Web Back")
-                        }
-
-                        IconButton(
-                            onClick = {
-                                webViewInstance?.loadUrl(baseUrl)
-                            }
-                        ) {
-                            Icon(Icons.Default.Home, contentDescription = "Home (Base URL)")
-                        }
-
-                        IconButton(
-                            onClick = {
-                                webViewInstance?.reload()
-                            }
-                        ) {
-                            Icon(Icons.Default.Refresh, contentDescription = "Reload")
-                        }
-                    }
-                )
             }
+            // Clean Footer: Bottom navigation / bottom bar must be completely empty/removed
         ) { innerPadding ->
             // Requirement 2: Full-screen Webview component occupying the main layout viewport
             // Requirement 3: Live Radars, Safe Zones, and Contacts UI completely removed

@@ -60,6 +60,18 @@ class FamilySafetyApp : Application() {
         // 6. Register Network Observer for signal loss trigger & reconnect auto-flush
         networkObserver = NetworkConnectivityObserver(this, safetyRepository)
         networkObserver.startObserving()
+
+        // 7. Persistent Background Execution: Start Foreground Service to guarantee continuous monitoring
+        try {
+            val serviceIntent = Intent(this, com.familysafety.guard.service.AuraBackgroundSafetyService::class.java)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                androidx.core.content.ContextCompat.startForegroundService(this, serviceIntent)
+            } else {
+                startService(serviceIntent)
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("FamilySafetyApp", "Could not start background safety service: ${e.message}")
+        }
     }
 
     private fun createNotificationChannel() {
