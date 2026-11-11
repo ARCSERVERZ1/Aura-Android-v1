@@ -38,13 +38,35 @@ class LocationSafetyRepository(
         val lat = location?.latitude ?: 0.0
         val lng = location?.longitude ?: 0.0
 
-        val payload = LocationPayload(
-            user = userIdentifier,
-            placeName = "Auto",
+        val batteryManager = context.getSystemService(Context.BATTERY_SERVICE) as? android.os.BatteryManager
+        val batteryLevel = batteryManager?.getIntProperty(android.os.BatteryManager.BATTERY_PROPERTY_CAPACITY) ?: 100
+        val isCharging = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+            batteryManager?.isCharging ?: false
+        } else {
+            false
+        }
+
+        val isoTimestamp = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", java.util.Locale.US).apply {
+            timeZone = java.util.TimeZone.getTimeZone("UTC")
+        }.format(java.util.Date())
+
+        val payload = TelemetryPayload(
+            username = userIdentifier,
+            deviceModel = android.os.Build.MODEL ?: "Pixel 7",
             latitude = lat,
             longitude = lng,
-            status = status,
-            visibility = 0
+            isCharging = isCharging,
+            batteryLevel = batteryLevel,
+            signalStrength = -75,
+            networkType = if (isNetworkAvailable()) "WIFI" else "NONE",
+            osVersion = "Android " + android.os.Build.VERSION.RELEASE,
+            locale = java.util.Locale.getDefault().toString(),
+            uptimeMs = android.os.SystemClock.elapsedRealtime(),
+            screenBrightness = 128,
+            remarks = "Trigger $status at battery $batteryLevel%",
+            sosFlag = (status == "ButtonTrigger"),
+            status = 1,
+            timestamp = isoTimestamp
         )
 
         Log.d("LocationRepo", "Attempting trigger $status: $payload")

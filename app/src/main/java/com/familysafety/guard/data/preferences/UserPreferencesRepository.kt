@@ -37,7 +37,7 @@ class UserPreferencesRepository(private val context: Context) {
         val KEY_NETWORK_TRIGGER_LATCHED = booleanPreferencesKey("network_trigger_latched")
 
         const val DEFAULT_BASE_URL = "http://192.168.1.18:9001"
-        const val DEFAULT_API_ENDPOINT = "http://192.168.1.18:9001/appg/location/api/"
+        const val DEFAULT_API_ENDPOINT = "http://192.168.1.18:9001/appg/telemetry/api/"
         const val DEFAULT_TRIGGER_INTERVAL = "15m"
         const val DEFAULT_BATTERY_THRESHOLD = 10 // 10%
         const val DEFAULT_NETWORK_THRESHOLD_DBM = -100 // -100 dBm
@@ -82,9 +82,11 @@ class UserPreferencesRepository(private val context: Context) {
         .catch { emitEmptyPreferences(it) }
         .map { preferences -> preferences[KEY_BASE_URL] ?: DEFAULT_BASE_URL }
 
-    val apiEndpointFlow: Flow<String> = dataStore.data
-        .catch { emitEmptyPreferences(it) }
-        .map { preferences -> preferences[KEY_API_ENDPOINT] ?: DEFAULT_API_ENDPOINT }
+    val apiEndpointFlow: Flow<String> = baseUrlFlow
+        .map { base ->
+            val cleanBase = base.trim().trimEnd('/')
+            "$cleanBase/appg/telemetry/api/"
+        }
 
     val lastVisitedUrlFlow: Flow<String?> = dataStore.data
         .catch { emitEmptyPreferences(it) }
